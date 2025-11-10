@@ -1,7 +1,7 @@
 // screens/DetailsScreen.js
 import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, Button, Alert } from 'react-native';
-import { getAllHikesSQLite, deleteHikeSQLite, resetHikesSQLite } from '../storage/HikeStorage';
+import { getAllHikesfilebase, deleteHikefilebase, resetHikesfilebase } from '../storage/HikeStorage';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function DetailsScreen({ navigation }) {
@@ -9,7 +9,7 @@ export default function DetailsScreen({ navigation }) {
 
   const loadHikes = async () => {
     try {
-      const arr = await getAllHikesSQLite();
+      const arr = await getAllHikesfilebase();
       setHikes(arr || []);
     } catch (err) {
       console.log('loadHikes err', err);
@@ -26,14 +26,14 @@ export default function DetailsScreen({ navigation }) {
   const handleDelete = (id) => {
     Alert.alert('Delete Hike', 'Are you sure you want to delete this hike?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Yes', onPress: async () => { await deleteHikeSQLite(id); await loadHikes(); } }
+      { text: 'Yes', onPress: async () => { await deleteHikefilebase(id); await loadHikes(); } }
     ]);
   };
 
   const handleReset = () => {
     Alert.alert('Reset All Hikes', 'Are you sure you want to reset all hikes?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Yes', onPress: async () => { await resetHikesSQLite(); await loadHikes(); } }
+      { text: 'Yes', onPress: async () => { await resetHikesfilebase(); await loadHikes(); } }
     ]);
   };
 
@@ -47,14 +47,14 @@ export default function DetailsScreen({ navigation }) {
 
       {hikes.map(hike => (
         <View key={hike.id} style={{ borderWidth: 1, padding: 10, marginBottom: 10 }}>
-          <Text>🏞️ {hike.name}</Text>
-          <Text>📍 {hike.location}</Text>
-          <Text>📅 {hike.date}</Text>
-          <Text>🅿️ {hike.parking}</Text>
-          <Text>📏 {hike.length} km</Text>
-          <Text>⚙️ {hike.difficulty}</Text>
-          {hike.description ? <Text>📝 {hike.description}</Text> : null}
-          {hike.participants ? <Text>👥 {hike.participants}</Text> : null}
+          <Text>🏞️ Name {hike.name}</Text>
+          <Text>📍 Location {hike.location}</Text>
+          <Text>📅 Date {hike.date}</Text>
+          <Text>🅿️ Parking {hike.parking}</Text>
+          <Text>📏 Length {hike.length} km</Text>
+          <Text>⚙️ Difficulty {hike.difficulty}</Text>
+          {hike.description ? <Text>📝 Description {hike.description}</Text> : null}
+          {hike.participants ? <Text>👥 Participants {hike.participants}</Text> : null}
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 5 }}>
             <Button title="Edit" onPress={() => navigation.navigate('EditHike', { hike })} />

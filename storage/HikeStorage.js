@@ -1,371 +1,156 @@
-// // storage/HikeStorage.js
-// import * as SQLite from 'expo-sqlite';
+import { firebaseConfig } from '../firebaseConfig'; // fill in your config
+import { initializeApp, getApps } from 'firebase/app';
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  writeBatch
+} from 'firebase/firestore';
 
-// let db = null;
-// let useSQLite = false;
-
-// try {
-//   if (SQLite.openDatabase) {
-//     db = SQLite.openDatabase("hikes.db");
-//     useSQLite = true;
-//     console.log("✅ SQLite loaded successfully");
-//   }
-// } catch (err) {
-//   console.log("❌ SQLite not available, fallback to memory", err);
-// }
-
-// // check trạng thái
-// export const isSQLiteEnabled = () => useSQLite;
-
-// // fallback memory
-// let memHikes = [];
-// let memId = 1;
-
-// export const initDatabase = async () => {
-//   if (!useSQLite) {
-//     console.log("⚠️ Using in-memory DB (SQLite unavailable)");
-//     return;
-//   }
-
-//   return new Promise((resolve, reject) => {
-//     db.transaction((tx) => {
-//       tx.executeSql(
-//         `CREATE TABLE IF NOT EXISTS hikes (
-//           id INTEGER PRIMARY KEY AUTOINCREMENT,
-//           name TEXT NOT NULL,
-//           location TEXT NOT NULL,
-//           date TEXT NOT NULL,
-//           parking TEXT NOT NULL,
-//           length TEXT NOT NULL,
-//           difficulty TEXT NOT NULL,
-//           description TEXT,
-//           participants TEXT
-//         );`,
-//         [],
-//         () => {
-//           console.log("✅ Database initialized");
-//           resolve(true);
-//         },
-//         (_, err) => {
-//           console.log("❌ Error initializing DB", err);
-//           reject(err);
-//         }
-//       );
-//     });
-//   });
-// };
-
-// // INSERT
-// export const insertHikeSQLite = async (hike) => {
-//   if (!useSQLite) {
-//     const copy = { ...hike, id: memId++ };
-//     memHikes.push(copy);
-//     return copy;
-//   }
-
-//   return new Promise((resolve, reject) => {
-//     db.transaction((tx) => {
-//       tx.executeSql(
-//         `INSERT INTO hikes (name, location, date, parking, length, difficulty, description, participants)
-//          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-//         [
-//           hike.name,
-//           hike.location,
-//           hike.date,
-//           hike.parking,
-//           hike.length,
-//           hike.difficulty,
-//           hike.description,
-//           hike.participants
-//         ],
-//         (_, result) => resolve(result),
-//         (_, err) => reject(err)
-//       );
-//     });
-//   });
-// };
-
-// // SELECT ALL
-// export const getAllHikesSQLite = async () => {
-//   if (!useSQLite) {
-//     return [...memHikes].reverse();
-//   }
-
-//   return new Promise((resolve, reject) => {
-//     db.transaction((tx) => {
-//       tx.executeSql(
-//         `SELECT * FROM hikes ORDER BY id DESC`,
-//         [],
-//         (_, result) => resolve(result.rows._array),
-//         (_, err) => reject(err)
-//       );
-//     });
-//   });
-// };
-
-// // UPDATE
-// export const updateHikeSQLite = async (hike) => {
-//   if (!useSQLite) {
-//     const index = memHikes.findIndex(h => h.id === hike.id);
-//     if (index !== -1) memHikes[index] = { ...hike };
-//     return;
-//   }
-
-//   return new Promise((resolve, reject) => {
-//     db.transaction((tx) => {
-//       tx.executeSql(
-//         `UPDATE hikes
-//          SET name=?, location=?, date=?, parking=?, length=?, difficulty=?, description=?, participants=?
-//          WHERE id = ?`,
-//         [
-//           hike.name,
-//           hike.location,
-//           hike.date,
-//           hike.parking,
-//           hike.length,
-//           hike.difficulty,
-//           hike.description,
-//           hike.participants,
-//           hike.id
-//         ],
-//         (_, result) => resolve(result),
-//         (_, err) => reject(err)
-//       );
-//     });
-//   });
-// };
-
-// // DELETE
-// export const deleteHikeSQLite = async (id) => {
-//   if (!useSQLite) {
-//     memHikes = memHikes.filter(h => h.id !== id);
-//     return;
-//   }
-
-//   return new Promise((resolve, reject) => {
-//     db.transaction((tx) => {
-//       tx.executeSql(
-//         `DELETE FROM hikes WHERE id = ?`,
-//         [id],
-//         (_, result) => resolve(result),
-//         (_, err) => reject(err)
-//       );
-//     });
-//   });
-// };
-
-// // RESET
-// export const resetHikesSQLite = async () => {
-//   if (!useSQLite) {
-//     memHikes = [];
-//     memId = 1;
-//     return;
-//   }
-
-//   return new Promise((resolve, reject) => {
-//     db.transaction((tx) => {
-//       tx.executeSql(
-//         `DELETE FROM hikes`,
-//         [],
-//         (_, result) => resolve(result),
-//         (_, err) => reject(err)
-//       );
-//     });
-//   });
-// };
-
-// storage/HikeStorage.js
-import * as SQLite from 'expo-sqlite';
-import { Platform } from 'react-native';
-
-let db = null;
-let useSQLite = false;
-
-try {
-  // Bảo đảm chỉ bật trên native
-  if ((Platform.OS === 'android' || Platform.OS === 'ios') && typeof SQLite.openDatabase === 'function') {
-    db = SQLite.openDatabase('hikes.db');
-    useSQLite = true;
-    console.log('✅ SQLite loaded successfully on', Platform.OS);
-  } else {
-    console.log('⚠️ SQLite unavailable on', Platform.OS, '-> fallback to memory');
-  }
-} catch (err) {
-  console.log('❌ SQLite not available, fallback to memory', err);
-}
-
-export const isSQLiteEnabled = () => useSQLite;
-
-// Fallback in-memory
+// ---------- In-memory fallback (kept for dev/emulator) ----------
 let memHikes = [];
 let memId = 1;
 
-export const initDatabase = async () => {
-  if (!useSQLite) {
-    console.log('⚠️ Using in-memory DB (SQLite unavailable)');
-    return true;
+// ---------- Firebase (Firestore) state ----------
+let firestore = null;
+let firestoreEnabled = false;
+
+// init firebase app if not already
+const ensureFirebase = () => {
+  try {
+    if (!getApps()?.length) {
+      initializeApp(firebaseConfig);
+    }
+    firestore = getFirestore();
+    firestoreEnabled = true;
+    console.log('✅ Firestore initialized (using Firebase).');
+  } catch (err) {
+    firestore = null;
+    firestoreEnabled = false;
+    console.log('⚠️ Firestore init failed, will use in-memory fallback.', err);
   }
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          `CREATE TABLE IF NOT EXISTS hikes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            location TEXT NOT NULL,
-            date TEXT NOT NULL,
-            parking TEXT NOT NULL,
-            length TEXT NOT NULL,
-            difficulty TEXT NOT NULL,
-            description TEXT,
-            participants TEXT
-          );`,
-          [],
-          () => console.log('✅ Database initialized')
-        );
-      },
-      (err) => {
-        console.log('❌ Error initializing DB', err);
-        reject(err);
-      },
-      () => resolve(true)
-    );
-  });
 };
+
+// Public check (for debugging)
+export const isFirestoreEnabled = () => firestoreEnabled;
+
+// initDatabase: here we ensure firebase is initialized. Firestore doesn't require creating tables.
+export const initDatabase = async () => {
+  // make sure user filled firebaseConfig
+  if (
+    !firebaseConfig ||
+    firebaseConfig.apiKey === 'YOUR_API_KEY' ||
+    !firebaseConfig.projectId
+  ) {
+    console.warn('⚠️ firebaseConfig seems not configured in firebaseConfig.js');
+    // still try to initialize; ensureFirebase will fail and fallback to mem
+  }
+
+  ensureFirebase();
+
+  // return true if firestore ready, otherwise false (fallback)
+  return firestoreEnabled;
+};
+
+// Collection name
+const HIKES_COLLECTION = 'hikes';
+
+// ------------------- CRUD: Firestore-backed (but same public names) -------------------
 
 // INSERT
-export const insertHikeSQLite = async (hike) => {
-  const participants = Array.isArray(hike?.participants)
-    ? JSON.stringify(hike.participants)
-    : (hike?.participants ?? '');
-
-  if (!useSQLite) {
-    const copy = { ...hike, id: memId++, participants };
+export const insertHikefilebase= async (hike) => {
+  if (firestoreEnabled && firestore) {
+    // Add createdAt for ordering
+    const docRef = await addDoc(collection(firestore, HIKES_COLLECTION), {
+      ...hike,
+      createdAt: Date.now()
+    });
+    return { success: true, id: docRef.id };
+  } else {
+    // in-memory fallback
+    const copy = { ...hike, id: memId++ };
     memHikes.push(copy);
-    return copy;
+    return { success: true, id: copy.id };
   }
-
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          `INSERT INTO hikes (name, location, date, parking, length, difficulty, description, participants)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            hike.name,
-            hike.location,
-            hike.date,
-            hike.parking,
-            hike.length,
-            hike.difficulty,
-            hike.description ?? '',
-            participants,
-          ],
-          (_, result) => resolve(result)
-        );
-      },
-      (err) => reject(err)
-    );
-  });
 };
 
-// SELECT ALL
-export const getAllHikesSQLite = async () => {
-  if (!useSQLite) {
-    return [...memHikes].sort((a, b) => b.id - a.id);
+// GET ALL
+export const getAllHikesfilebase = async () => {
+  if (firestoreEnabled && firestore) {
+    const q = query(collection(firestore, HIKES_COLLECTION), orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    const arr = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return arr;
+  } else {
+    // return shallow copy, newest first
+    return [...memHikes].reverse();
   }
-
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          'SELECT * FROM hikes ORDER BY id DESC',
-          [],
-          (_, result) => resolve(result.rows._array)
-        );
-      },
-      (err) => reject(err)
-    );
-  });
 };
 
 // UPDATE
-export const updateHikeSQLite = async (hike) => {
-  const participants = Array.isArray(hike?.participants)
-    ? JSON.stringify(hike.participants)
-    : (hike?.participants ?? '');
-
-  if (!useSQLite) {
-    const index = memHikes.findIndex((h) => h.id === hike.id);
-    if (index !== -1) memHikes[index] = { ...hike, participants };
-    return;
+export const updateHikefilebase = async (hike) => {
+  if (firestoreEnabled && firestore) {
+    if (!hike.id) throw new Error('Missing id in hike for update');
+    const ref = doc(firestore, HIKES_COLLECTION, hike.id);
+    // do not update createdAt (keep)
+    const { id, createdAt, ...rest } = hike;
+    await updateDoc(ref, rest);
+    return { success: true };
+  } else {
+    const idx = memHikes.findIndex(h => h.id === hike.id);
+    if (idx !== -1) memHikes[idx] = { ...hike };
+    return { success: true };
   }
-
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          `UPDATE hikes
-           SET name=?, location=?, date=?, parking=?, length=?, difficulty=?, description=?, participants=?
-           WHERE id = ?`,
-          [
-            hike.name,
-            hike.location,
-            hike.date,
-            hike.parking,
-            hike.length,
-            hike.difficulty,
-            hike.description ?? '',
-            participants,
-            hike.id,
-          ],
-          (_, result) => resolve(result)
-        );
-      },
-      (err) => reject(err)
-    );
-  });
 };
 
 // DELETE
-export const deleteHikeSQLite = async (id) => {
-  if (!useSQLite) {
-    memHikes = memHikes.filter((h) => h.id !== id);
-    return;
+export const deleteHikefilebase = async (id) => {
+  if (firestoreEnabled && firestore) {
+    const ref = doc(firestore, HIKES_COLLECTION, id.toString());
+    await deleteDoc(ref);
+    return { success: true };
+  } else {
+    memHikes = memHikes.filter(h => h.id !== id);
+    return { success: true };
   }
-
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          'DELETE FROM hikes WHERE id = ?,'
-          [id],
-          (_, result) => resolve(result)
-        );
-      },
-      (err) => reject(err)
-    );
-  });
 };
 
-// RESET
-export const resetHikesSQLite = async () => {
-  if (!useSQLite) {
+// RESET (delete all)
+export const resetHikesfilebase = async () => {
+  if (firestoreEnabled && firestore) {
+    // Firestore has no single SQL delete; we read docs then batch delete
+    const snap = await getDocs(collection(firestore, HIKES_COLLECTION));
+    if (snap.empty) return { success: true };
+    const batch = writeBatch(firestore);
+    snap.docs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    return { success: true };
+  } else {
     memHikes = [];
     memId = 1;
-    return;
+    return { success: true };
   }
-
-  return new Promise((resolve, reject) => {
-    db.transaction(
-      (tx) => {
-        tx.executeSql(
-          'DELETE FROM hikes',
-          [],
-          (_, result) => resolve(result)
-        );
-      },
-      (err) => reject(err)
-    );
-  });
 };
+
+/* 
+  -------------------------
+  NOTES & fallback info
+  -------------------------
+  - This file keeps the function names you already use in screens so you don't
+    need to modify UI files.
+  - If firebaseConfig.js is not filled, the code will fallback to in-memory.
+  - Firestore documents will have an auto-generated document id (string).
+  - For compatibility with your previous UI which expected numeric `id` in-memory,
+    we still return objects with `id` properties. When using Firestore, `id` is the doc id (string).
+*/
+
+/* -------------- OPTIONAL / OLD: (SQLite code kept for reference) --------------
+If you want to keep your old expo-sqlite implementation, you can paste it here or
+restore it later. I intentionally didn't delete any of your UI files.
+------------------------------------------------------------------------------ */

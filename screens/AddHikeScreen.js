@@ -1,7 +1,7 @@
 // screens/AddHikeScreen.js
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { insertHikeSQLite } from '../storage/HikeStorage';
+import { insertHikefilebase } from '../storage/HikeStorage';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -49,7 +49,8 @@ export default function AddHikeScreen({ navigation }) {
 
   const saveHike = async (hike) => {
     try {
-      await insertHikeSQLite(hike);
+      const r = await insertHikefilebase(hike);
+      console.log('insert result', r);
       Alert.alert('Success', 'Hike added!');
       clearFields();
       navigation.navigate('Details');
@@ -71,7 +72,6 @@ export default function AddHikeScreen({ navigation }) {
   };
 
   const showDatepicker = () => setShowDatePicker(true);
-
   const onDateChange = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) setDate(selectedDate);

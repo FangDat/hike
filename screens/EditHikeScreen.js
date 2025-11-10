@@ -1,7 +1,7 @@
 // screens/EditHikeScreen.js
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, Alert, ScrollView, TouchableOpacity, Platform } from 'react-native';
-import { updateHikeSQLite } from '../storage/HikeStorage';
+import { updateHikefilebase } from '../storage/HikeStorage';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -63,9 +63,8 @@ export default function EditHikeScreen({ navigation, route }) {
 
   const saveHike = async (hike) => {
     try {
-      await updateHikeSQLite(hike);
+      await updateHikefilebase(hike);
       Alert.alert('Success', 'Hike updated!');
-      // goBack will return to Details; Details uses useFocusEffect to reload data
       navigation.goBack();
     } catch (err) {
       console.log('update err', err);
