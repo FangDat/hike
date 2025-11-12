@@ -4,6 +4,10 @@ import { View, Text, TextInput, Button, Alert, ScrollView, TouchableOpacity, Pla
 import { insertHikefilebase } from '../storage/HikeStorage';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Location from 'expo-location';
+import axios from 'axios';
+
+const OPENCAGE_API_KEY = 'f70417a9320a42c28e2f87398e996e6f';
 
 export default function AddHikeScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -17,6 +21,52 @@ export default function AddHikeScreen({ navigation }) {
   const [participants, setParticipants] = useState('');
 
   const formatDate = d => `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`;
+
+  const detectLocation = async () => {
+    try {
+      // 1. Request permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required.');
+        return;
+      }
+
+      // 2. Check if location services are enabled
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        Alert.alert('Error', 'Location services are disabled. Please enable them in settings.');
+        return;
+      }
+
+      // 3. Get current position with high accuracy
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+        maximumAge: 10000,
+        timeout: 5000
+      });
+
+      console.log(`DEBUG_LOCATION: Latitude ${loc.coords.latitude}, Longitude ${loc.coords.longitude}`);
+
+      // 4. Reverse geocode via OpenCage
+      const response = await axios.get(
+        `https://api.opencagedata.com/geocode/v1/json?q=${loc.coords.latitude}+${loc.coords.longitude}&key=${OPENCAGE_API_KEY}`
+      );
+
+      const components = response.data.results[0]?.components || {};
+      const city =
+        components.city ||
+        components.town ||
+        components.village ||
+        components.state ||
+        'Unknown';
+      setLocation(city);
+
+    } catch (error) {
+      console.error('DEBUG_ERROR:', error);
+      Alert.alert('Error', 'Could not detect location. Make sure location services are enabled.');
+    }
+  };
+
 
   const validateAndConfirm = () => {
     if (!name.trim()) { Alert.alert('Error', 'Please fill Name'); return; }
@@ -84,6 +134,7 @@ export default function AddHikeScreen({ navigation }) {
 
       <Text>Location *</Text>
       <TextInput placeholder="Enter location" value={location} onChangeText={setLocation} style={{ borderWidth: 1, marginBottom: 10, padding: 5 }} />
+      <Button title="📍 Detect My Location" onPress={detectLocation} />
 
       <Text>Date *</Text>
       <TouchableOpacity onPress={showDatepicker} style={{ borderWidth: 1, padding: 10, marginBottom: 10 }}>
@@ -98,9 +149,7 @@ export default function AddHikeScreen({ navigation }) {
       </Picker>
 
       <Text>Length (km) *</Text>
-      <TextInput placeholder="Enter length" keyboardType="numeric" value={length}
-        onChangeText={text => setLength(text.replace(/[^0-9]/g, ''))}
-        style={{ borderWidth: 1, marginBottom: 10, padding: 5 }} />
+      <TextInput placeholder="Enter length" keyboardType="numeric" value={length} onChangeText={text => setLength(text.replace(/[^0-9]/g, ''))} style={{ borderWidth: 1, marginBottom: 10, padding: 5 }} />
 
       <Text>Difficulty *</Text>
       <Picker selectedValue={difficulty} onValueChange={setDifficulty} style={{ borderWidth: 1, marginBottom: 10 }}>
